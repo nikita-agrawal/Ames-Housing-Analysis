@@ -1,0 +1,1 @@
+A Folder to hold final versions of scripts and notebooks containing individual modules in the data analysis process (i.e. data_cleaning.py, linear_regression_model.py etc.) Material from the 4 individual dev folders will be added here. 

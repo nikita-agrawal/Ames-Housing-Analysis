@@ -63,3 +63,13 @@ def stratified_split(df,stratified_col,
     df_train = pd.concat([df_train, df[df[stratified_col].isin(single_strat)]
                           ]).reset_index(drop=True)
     return df_train, df_test
+
+def convert_cat_ordinal_vars_to_num(df, columns, mapping_dict):
+    for column in columns:
+        df[column] = df[column].map(mapping_dict).fillna(value=0)
+    return df
+
+def convert_nas_to_none(df, columns):
+    for column in columns:
+        df[column] = df[column].fillna(value = 'None')
+    return df

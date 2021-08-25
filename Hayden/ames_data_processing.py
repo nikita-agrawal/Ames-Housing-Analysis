@@ -3,7 +3,7 @@
 """
 Created on Wed Aug 25 15:10:24 2021
 
-@author: Hayden Warren, 
+@author: Julie Hemily, Hayden Warren
 """
 ###################FUTURE WORK##################################
 # Fix the drop_now_but_look_at_later features.
@@ -59,11 +59,29 @@ cat_ordinal_dict = {'Fa':1,'TA':2,'Gd':3,'Ex':4}
 train = helper.convert_cat_ordinal_vars_to_num(train,
                                                cat_ordinal_features,
                                                cat_ordinal_dict)
-# Fence
+# (JH) Garage Finish
 cat_ordinal_features = [
-    'Fence'
+    'GarageFinish'
 ]
-cat_ordinal_dict = {'MnWw':1,'GdWo':2,'MnPrv':3,'GdPrv':4}
+cat_ordinal_dict = {'Unf':1,'RFn':2,'Fin':3}
+train = helper.convert_cat_ordinal_vars_to_num(train,
+                                               cat_ordinal_features,
+                                               cat_ordinal_dict)
+
+# (JH) Alley
+cat_ordinal_features = [
+    'Alley'
+]
+cat_ordinal_dict = {'Grvl':1,'Pave':2}
+train = helper.convert_cat_ordinal_vars_to_num(train,
+                                               cat_ordinal_features,
+                                               cat_ordinal_dict)
+
+# (JH) PavedDrive
+cat_ordinal_features = [
+    'Alley'
+]
+cat_ordinal_dict = {'P':1,'Y':2}
 train = helper.convert_cat_ordinal_vars_to_num(train,
                                                cat_ordinal_features,
                                                cat_ordinal_dict)
@@ -71,17 +89,17 @@ train = helper.convert_cat_ordinal_vars_to_num(train,
 ############################################################
 # weirdest nas. lot frontage. probably worth removing
 # not dealing with them out of expediance. 
-drop_now_but_look_at_later = ['LotFrontage','MasVnrArea','GarageYrBlt','MasVnrType']
+drop_now_but_look_at_later = ['LotFrontage','MasVnrArea','GarageYrBlt']
 train.drop(drop_now_but_look_at_later, axis=1,inplace = True)
 
 # NAs that have meaning based on data dicitonary.
 # nas are "None" categorical value
-na_none_features = ['MiscFeature','Alley','BsmtFinType1','BsmtFinType2',
-                   'GarageFinish','GarageType']
+na_none_features = ['MiscFeature','BsmtFinType1','BsmtFinType2',
+                   'GarageType', 'MasVnrType']
 for na_none_feature in na_none_features:
     train[na_none_feature] = train[na_none_feature].fillna(value = 'None')
 # nas are 0 numerical value
-na_zero_features = ['BsmtFullBath','BsmtHalfBath']
+na_zero_features = ['BsmtFullBath','BsmtHalfBath','GarageFinish','Alley']
 for na_none_feature in na_zero_features:
     train[na_none_feature] = train[na_none_feature].fillna(value = 0)
     
@@ -89,3 +107,11 @@ for na_none_feature in na_zero_features:
 # second group of features that have problems that I need help solving.
 cols_na = train.loc[:,train.isna().any(axis=0)].columns.to_list()
 cols_na
+
+#############################################################
+# (JH) Julie's specific additions
+# (HW) Consider making this more generalizable
+# 1. Replacing two values of GarageType to None
+
+train.loc[train['PID'] == 903426160,'GarageType'] = 'None'
+train.loc[train['PID'] == 910201180,'GarageType'] = 'None'

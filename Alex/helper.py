@@ -3,18 +3,46 @@
 """
 Created on Thu Aug 19 08:55:00 2021
 
-@author: haydenlw4
+@author: Alex Austin, Hayden Warren
 """
 
 import pandas as pd
 from sklearn.model_selection import StratifiedShuffleSplit
 
-def stratified_split(df, stratified_col,
+# Stratified split authored by Alex A, generalized by Hayden W.
+def stratified_split(df,stratified_col,
                      n_splits = 1, 
                      test_size = 0.25, 
                      random_state = 42):
+    '''
+    Completes a stratified split on unique rows of a dataframe 
+    on specified column.
+    
+    Parameters
+    ----------
+    df : pandas Dataframe
+        Dataframe to be split.
+    stratified_col : string
+        Column that stratification will be done on.
+    n_splits : integer, optional
+        number of splits. The default is 1.
+    test_size : float, optional
+        proportion in df_test. The default is 0.25.
+    random_state : integer, optional
+        The default is 42.
+
+    Returns
+    -------
+    df_train : pandas Dataframe
+        Dataframe after split. 
+        Will have 1 - test_size proportion of rows.
+    df_test : pandas Dataframe
+        Dataframe after split. 
+        Will have test_size proportion of rows.
+
+    '''
     # Ensure clean index and remove duplicates
-    df.reset_index(inplace=True, drop=True)
+    df.reset_index(inplace=True,drop=True)
     df.drop_duplicates(inplace=True)
     # Check for stratifications with single element. 
     value_count = df[stratified_col].value_counts(ascending=True).reset_index()
@@ -35,3 +63,13 @@ def stratified_split(df, stratified_col,
     df_train = pd.concat([df_train, df[df[stratified_col].isin(single_strat)]
                           ]).reset_index(drop=True)
     return df_train, df_test
+
+def convert_cat_ordinal_vars_to_num(df, columns, mapping_dict):
+    for column in columns:
+        df[column] = df[column].map(mapping_dict).fillna(value=0)
+    return df
+
+def convert_nas_to_none(df, columns):
+    for column in columns:
+        df[column] = df[column].fillna(value = 'None')
+    return df

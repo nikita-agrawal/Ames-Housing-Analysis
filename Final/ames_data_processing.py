@@ -15,7 +15,10 @@ import numpy as np
 import helper # my function that i added
 
 # loading and splitting data
-housing = pd.read_csv('Ames_Housing_Price_Data.csv', index_col=0)
+# (AA) Modified to exclude SaleCondition other than Normal and Partial.
+housing = pd.read_csv('Ames_Housing_Price_Data.csv')
+housing.drop('Unnamed: 0', axis=1, inplace=True)
+housing = hous_df[(housing['SaleCondition'] == 'Normal') | (housing['SaleCondition'] == 'Partial')].reset_index(drop=True)
 
 train, test = helper.stratified_split(housing,'Neighborhood')
 
@@ -85,11 +88,17 @@ cat_ordinal_dict = {'P':1,'Y':2}
 train = helper.convert_cat_ordinal_vars_to_num(train,
                                                cat_ordinal_features,
                                                cat_ordinal_dict)
+# (AA) LotFrontage imputed as (coefficient from dict) * sqrt(LotArea)
+LotFrontage_dict = {'1Fam':0.7139, 'TwnhsE':0.5849, 'Twnhs':0.5227, 'Duplex':0.7725, '2fmCon':0.6922}
+train.loc[train['LotFrontage'].isna(), 'LotFrontage'] = train.loc[train['LotFrontage'].isna(), :].apply(
+    lambda x: LotFrontage_dict[x['BldgType']]*np.sqrt(x['LotArea']), axis=1
+)
 
 ############################################################
 # weirdest nas. lot frontage. probably worth removing
-# not dealing with them out of expediance. 
-drop_now_but_look_at_later = ['LotFrontage','MasVnrArea','GarageYrBlt']
+# not dealing with them out of expediance.
+# (AA) Removing LotFrontage here because imputed above.
+drop_now_but_look_at_later = ['MasVnrArea','GarageYrBlt']
 train.drop(drop_now_but_look_at_later, axis=1,inplace = True)
 
 # NAs that have meaning based on data dicitonary.
@@ -98,10 +107,14 @@ na_none_features = ['MiscFeature','BsmtFinType1','BsmtFinType2',
                    'GarageType', 'MasVnrType']
 for na_none_feature in na_none_features:
     train[na_none_feature] = train[na_none_feature].fillna(value = 'None')
+
 # nas are 0 numerical value
-na_zero_features = ['BsmtFullBath','BsmtHalfBath','GarageFinish','Alley']
-for na_none_feature in na_zero_features:
-    train[na_none_feature] = train[na_none_feature].fillna(value = 0)
+# (AA) Changed na_none_feature to na_zero_feature for readability. 
+# (AA) Added 'BsmtFinSF1','BsmtFinSF2','BsmtUnfSF','TotalBsmtSF' to the list.
+na_zero_features = ['BsmtFullBath','BsmtHalfBath','GarageFinish','Alley', 
+                   'BsmtFinSF1','BsmtFinSF2','BsmtUnfSF','TotalBsmtSF']
+for na_zero_feature in na_zero_features:
+    train[na_zero_feature] = train[na_zero_feature].fillna(value = 0)
     
 ############################################################
 # second group of features that have problems that I need help solving.

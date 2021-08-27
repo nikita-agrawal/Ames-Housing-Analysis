@@ -16,9 +16,10 @@ import helper # my function that i added
 
 # loading and splitting data
 # (AA) Modified to exclude SaleCondition other than Normal and Partial.
+# (Niki) Typo hous_df - Changed to housing. 
 housing = pd.read_csv('Ames_Housing_Price_Data.csv')
 housing.drop('Unnamed: 0', axis=1, inplace=True)
-housing = hous_df[(housing['SaleCondition'] == 'Normal') | (housing['SaleCondition'] == 'Partial')].reset_index(drop=True)
+housing = housing[(housing['SaleCondition'] == 'Normal') | (housing['SaleCondition'] == 'Partial')].reset_index(drop=True)
 
 train, test = helper.stratified_split(housing,'Neighborhood')
 
@@ -45,16 +46,17 @@ cat_ordinal_dict = {'No':1,'Mn':2,'Av':3,'Gd':4}
 train = helper.convert_cat_ordinal_vars_to_num(train,
                                                cat_ordinal_features,
                                                cat_ordinal_dict)
+#(Niki) Updated values in mapping dictionary
 # Functional
 cat_ordinal_features = [
     'Functional'
 ]
 cat_ordinal_dict = {'Sal':1,'Sev':2,'Maj2':3,'Maj1':4,
-                    'Mod':5,'Min2':6,'Min1':7,'Typ':8}
+                    'Mod':6,'Min2':8,'Min1':9,'Typ':10}
 train = helper.convert_cat_ordinal_vars_to_num(train,
                                                cat_ordinal_features,
                                                cat_ordinal_dict)
-# PoolQC
+# PoolQC ((Niki) Suggest Dropping in future and replace by _has_Pool binary feature)
 cat_ordinal_features = [
     'PoolQC'
 ]
@@ -94,6 +96,16 @@ train.loc[train['LotFrontage'].isna(), 'LotFrontage'] = train.loc[train['LotFron
     lambda x: LotFrontage_dict[x['BldgType']]*np.sqrt(x['LotArea']), axis=1
 )
 
+# (Niki) Utilities
+cat_ordinal_features = [
+    'Utilities'
+]
+cat_ordinal_dict = {'ELO':1,'NoSeWa':2,'NoSewr':3,'AllPub':4}
+train = helper.convert_cat_ordinal_vars_to_num(train,
+                                               cat_ordinal_features,
+                                               cat_ordinal_dict)
+
+
 ############################################################
 # weirdest nas. lot frontage. probably worth removing
 # not dealing with them out of expediance.
@@ -128,3 +140,10 @@ cols_na
 
 train.loc[train['PID'] == 903426160,'GarageType'] = 'None'
 train.loc[train['PID'] == 910201180,'GarageType'] = 'None'
+
+#####
+# (Niki) Replace 'Pool Area' feature with binary '_has_Pool'. Drop PoolQC
+#train['_has_Pool'] = [1 if row != 0 else 0 for row in train['PoolArea']]
+
+# (Niki) Replace null value for Electrical with most common value 'SBrkr'
+train['Electrical'] = train['Electrical'].fillna(value = 'SBrkr')

@@ -73,3 +73,26 @@ def convert_nas_to_none(df, columns):
     for column in columns:
         df[column] = df[column].fillna(value = 'None')
     return df
+
+def geo_cords_imputing(df, imputing = 0):
+    # if imputing dictionary is input then it will use that dictionary
+    if imputing:
+        geo_cords = ['latitude','longitude']
+        for geo_cord in geo_cords:
+            df.loc[df[geo_cord].isna(), 
+                      geo_cord] = df.loc[df[geo_cord].isna(), :].apply(
+                lambda x: imputing[geo_cord][x['Neighborhood']], axis=1
+            )
+        return df
+    # if no imputing dictionary is input then it will make the imputing dict.
+    else:
+        nbhd_geo_dict = df.groupby('Neighborhood').agg({'longitude':'median',
+                                                          'latitude':'median',}
+                                                         ).to_dict()
+        geo_cords = ['latitude','longitude']
+        for geo_cord in geo_cords:
+            df.loc[df[geo_cord].isna(), 
+                      geo_cord] = df.loc[df[geo_cord].isna(), :].apply(
+                lambda x: nbhd_geo_dict[geo_cord][x['Neighborhood']], axis=1
+            )
+        return df, nbhd_geo_dict

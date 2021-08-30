@@ -25,8 +25,11 @@ train, test = helper.stratified_split(housing,'Neighborhood')
 train, mapping_dict = helper.geo_cords_imputing(train)
 test = helper.geo_cords_imputing(test,mapping_dict)
 
-train = helper.data_processing_wrapper(train)
-test = helper.data_processing_wrapper(test)
+train_clean = helper.data_processing_wrapper(train)
+test_clean = helper.data_processing_wrapper(test)
 
 train.to_csv('train_geo.csv')
 test.to_csv('test_geo.csv')
+
+train_clean.to_csv('train_geo_clean.csv')
+test_clean.to_csv('test_geo_clean.csv')

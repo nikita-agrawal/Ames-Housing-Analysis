@@ -3,7 +3,7 @@
 """
 Created on Thu Aug 19 08:55:00 2021
 
-@author: Alex Austin, Hayden Warren, Niki Agrawal
+@author: Alex Austin, Hayden Warren, Niki Agrawal, Julie Hemily
 """
 
 import pandas as pd
@@ -165,35 +165,83 @@ def map_ordinal_cat(df):
     df.replace(replace_map, inplace=True)
     return df 
 
-def data_processing_wrapper(df,
-                            # should be able to change these 
-                            # inputs for possible changes
-                            # stratified_split_dict = 
+#(HW)
+def data_processing_wrapper(df, 
+                            num_to_cat_list = [
+                                'GarageCars',
+                                'MSSubClass',
+                                'KitchenAbvGr',
+                                'BedroomAbvGr',
+                                'MoSold',
+                                'YrSold'
+                                ],
+                            remove_PID = True,
+                            stratified_split_inputs = {
+                                'stratified_col':'Neighborhood',
+                                'test_size':0.25, 
+                                'random_state':42
+                                }
                             ):
+    '''
+    
+
+    Parameters
+    ----------
+    df : pandas DataFrame
+        Built to take the initial Ames_Housing_Price_Data.csv file without
+        the index_col. Example line necessary to run code:
+            df = pd.read_csv('Ames_Housing_Price_Data.csv', 
+                             index_col=0,low_memory = False)
+
+    num_to_cat_list : list, optional
+        list of numerical features turned into categorical features. 
+        The default is ['GarageCars','MSSubClass',KitchenAbvGr',
+                        'BedroomAbvGr','MoSold','YrSold'].
+    remove_PID : boolean, optional
+        True if you want to remove PID col. False if you want to keep PID col.
+        The default is True.
+    stratified_split_inputs : dictionary, optional
+        To change the inputes of the stratefied_split function. 
+        The default is {                                
+            'stratified_col':'Neighborhood',                                
+            'test_size':0.25,                                
+            'random_state':42                                
+            }.
+
+    Returns
+    -------
+    train_clean : pandas DataFrame
+        train_clean.
+    test_clean : pandas DataFrame
+        test_clean.
+
+    '''
     df = df[(df['SaleCondition'] == 'Normal') | 
             (df['SaleCondition'] == 'Partial')].reset_index(drop=True)
     
-    train_raw, test_raw = stratified_split(df,'Neighborhood')
+    # we can only do 1 split with this function.
+    train_raw, test_raw = stratified_split(
+        df,
+        stratified_col = stratified_split_inputs['stratified_col'],
+        n_splits = 1,
+        test_size = stratified_split_inputs['test_size'],
+        random_state = stratified_split_inputs['random_state'],
+                                           )
     # train cleaning
     train_clean = impute_missing_vals(train_raw)
-    num_to_cat_list =['GarageCars','MSSubClass','KitchenAbvGr',
-                      'BedroomAbvGr','MoSold','YrSold']
     train_clean = convert_num_to_categorical(train_clean,num_to_cat_list) 
     train_clean = replace_na_with_none(train_clean)
-    # this could be an option when calling the function
-    train_clean = train_clean.drop(['PID'],axis='columns')
+    if remove_PID:
+        train_clean = train_clean.drop(['PID'],axis='columns')
     train_clean = map_ordinal_cat(train_clean)
     # test cleaning
     test_clean = impute_missing_vals(test_raw)
-    num_to_cat_list =['GarageCars','MSSubClass','KitchenAbvGr',
-                      'BedroomAbvGr','MoSold','YrSold']
     test_clean = convert_num_to_categorical(test_clean,num_to_cat_list) 
     test_clean = replace_na_with_none(test_clean)
-    # this could be an option when calling the function
-    test_clean = test_clean.drop(['PID'],axis='columns')
+    if remove_PID:
+        test_clean = test_clean.drop(['PID'],axis='columns')
     test_clean = map_ordinal_cat(test_clean)
     return train_clean, test_clean
-
 
 
 

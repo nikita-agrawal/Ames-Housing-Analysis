@@ -3,7 +3,7 @@
 """
 Created on Thu Aug 19 08:55:00 2021
 
-@author: Alex Austin, Hayden Warren
+@author: Alex Austin, Hayden Warren, Niki Agrawal
 """
 
 import pandas as pd
@@ -65,15 +65,6 @@ def stratified_split(df,stratified_col,
                           ]).reset_index(drop=True)
     return df_train, df_test
 
-def convert_cat_ordinal_vars_to_num(df, columns, mapping_dict):
-    for column in columns:
-        df[column] = df[column].map(mapping_dict).fillna(value=0)
-    return df
-
-def convert_nas_to_none(df, columns):
-    for column in columns:
-        df[column] = df[column].fillna(value = 'None')
-    return df
 
 def geo_cords_imputing(df, imputing = 0):
     # if imputing dictionary is input then it will use that dictionary
@@ -98,130 +89,117 @@ def geo_cords_imputing(df, imputing = 0):
             )
         return df, nbhd_geo_dict
 
+# written by Niki
+def impute_missing_vals(df):
+    #1. Impute LotFrontage missing values with linear regression coefficients 
+    # AA: LotFrontage imputed as (coefficient from dict) * sqrt(LotArea)
+    LotFrontage_dict = {'1Fam':0.7139, 'TwnhsE':0.5849, 'Twnhs':0.5227, 'Duplex':0.7725, '2fmCon':0.6922}
+    df.loc[df['LotFrontage'].isna(), 'LotFrontage'] = df.loc[df['LotFrontage'].isna(), :].apply(
+        lambda x: LotFrontage_dict[x['BldgType']]*np.sqrt(x['LotArea']), axis=1)
 
-def convert_all_cat_ordinals(df):
-    cat_ordinal_features = [
-        'GarageQual','GarageCond',
-        'FireplaceQu',
-        'KitchenQual',
-        'ExterQual','ExterCond',
-        'BsmtQual','BsmtCond',
-        'HeatingQC'
-        ]
-    cat_ordinal_dict = {'Po':1,'Fa':2,'TA':3,'Gd':4,'Ex':5}
-    df = convert_cat_ordinal_vars_to_num(df,
-                                                cat_ordinal_features,
-                                                cat_ordinal_dict)
-    # BsmtExposure
-    cat_ordinal_features = [
-        'BsmtExposure'
-    ]
-    cat_ordinal_dict = {'No':1,'Mn':2,'Av':3,'Gd':4}
-    df = convert_cat_ordinal_vars_to_num(df,
-                                                cat_ordinal_features,
-                                                cat_ordinal_dict)
-    #(Niki) Updated values in mapping dictionary
-    #(HW) Why are the mapping numbers spaced now? Is that in documentation?
-    # Functional
-    cat_ordinal_features = [
-        'Functional'
-    ]
-    cat_ordinal_dict = {'Sal':1,'Sev':2,'Maj2':3,'Maj1':4,
-                        'Mod':6,'Min2':8,'Min1':9,'Typ':10}
-    df = convert_cat_ordinal_vars_to_num(df,
-                                                cat_ordinal_features,
-                                                cat_ordinal_dict)
-    # PoolQC
-    cat_ordinal_features = [
-        'PoolQC'
-    ]
-    cat_ordinal_dict = {'Fa':1,'TA':2,'Gd':3,'Ex':4}
-    df = convert_cat_ordinal_vars_to_num(df,
-                                                   cat_ordinal_features,
-                                                   cat_ordinal_dict)
-    # Fence
-    cat_ordinal_features = [
-        'Fence'
-    ]
-    cat_ordinal_dict = {'MnWw':1,'GdWo':2,'MnPrv':3,'GdPrv':4}
-    df = convert_cat_ordinal_vars_to_num(df,
-                                                   cat_ordinal_features,
-                                                   cat_ordinal_dict)
-    # (JH) Garage Finish
-    cat_ordinal_features = [
-        'GarageFinish'
-    ]
-    cat_ordinal_dict = {'Unf':1,'RFn':2,'Fin':3}
-    df = convert_cat_ordinal_vars_to_num(df,
-                                                   cat_ordinal_features,
-                                                   cat_ordinal_dict)
+    #2. All rows with MasVnrArea null values also have MasVnrType as null.\
+    idx = df['MasVnrArea'].isna() & (df['MasVnrType'].isna())
+    #Assume these properties do not have a veneer, so set MasVnrType as "None" and MasVnrArea as 0 
+    df.loc[idx,'MasVnrArea'] = 0 
+    df.loc[idx,'MasVnrType'] = "None" #motivated by the null value in test, is this data leakage?
 
-    # (JH) Alley
-    cat_ordinal_features = [
-        'Alley'
-    ]
-    cat_ordinal_dict = {'Grvl':1,'Pave':2}
-    df = convert_cat_ordinal_vars_to_num(df,
-                                                   cat_ordinal_features,
-                                                   cat_ordinal_dict)
+    #3 & 4. BsmtFullBath & BsmtHalfBath nulls corresponds with No basement. Can impute with 0. 
+    df.loc[df['BsmtFullBath'].isna() & (df['TotalBsmtSF']==0),'BsmtFullBath'] = 0
+    df.loc[df['BsmtHalfBath'].isna() & (df['TotalBsmtSF']==0),'BsmtHalfBath'] = 0 
+
+    #5. GarageYrBuilt - repalce missing year with YearBuilt for properties with non-zero garage area values  
+    idx = df['GarageYrBlt'].isna() & (df['GarageArea']!=0.0)
+    df.loc[idx,'GarageYrBlt'] = df.loc[idx,'YearBuilt']
+    #The rest do not have garages so fill with 0, later convert to None 
+    df['GarageYrBlt'] = df['GarageYrBlt'].fillna(value=0)
     
-    # (JH) PavedDrive
-    cat_ordinal_features = [
-        'PavedDrive'
-    ]
-    cat_ordinal_dict = {'P':1,'Y':2}
-    df = convert_cat_ordinal_vars_to_num(df,
-                                                   cat_ordinal_features,
-                                                   cat_ordinal_dict)
-    # (Niki) Utilities
-    cat_ordinal_features = [
-        'Utilities'
-    ]
-    cat_ordinal_dict = {'ELO':1,'NoSeWa':2,'NoSewr':3,'AllPub':4}
-    df = convert_cat_ordinal_vars_to_num(df,
-                                                   cat_ordinal_features,
-                                                   cat_ordinal_dict)
-    return df
-
-def convert_all_well_defined_nas(df):
-    # NAs that have meaning based on data dicitonary.
-    # nas are "None" categorical value
-    na_none_features = ['MiscFeature','BsmtFinType1','BsmtFinType2',
-                       'GarageType', 'MasVnrType']
-    for na_none_feature in na_none_features:
-        df[na_none_feature] = df[na_none_feature].fillna(value = 'None')
-        
-    # nas are 0 numerical value
-    # (AA) Changed na_none_feature to na_zero_feature for readability. 
-    # (AA) Added 'BsmtFinSF1','BsmtFinSF2','BsmtUnfSF','TotalBsmtSF' to the list.
-    na_zero_features = ['BsmtFullBath','BsmtHalfBath','GarageFinish','Alley', 
-                       'BsmtFinSF1','BsmtFinSF2','BsmtUnfSF','TotalBsmtSF']
-    for na_zero_feature in na_zero_features:
-        df[na_zero_feature] = df[na_zero_feature].fillna(value = 0)
-    # (Niki) Replace null value for Electrical with most common value 'SBrkr'
-    df['Electrical'] = df['Electrical'].fillna(value = 'SBrkr')
-    return df
-
-def data_processing_wrapper(df):
-    df = convert_all_cat_ordinals(df)
-    df = convert_all_well_defined_nas(df)
-    # dropping columns that no one tried to salvage or impute with.
-    drop_now_but_look_at_later = ['MasVnrArea','GarageYrBlt']
-    df.drop(drop_now_but_look_at_later, axis=1,inplace = True)
-    for column in drop_now_but_look_at_later:
-        print(f'Dropping {column} from our data set.')
-    # alex's imputing of lot frontage.
-    # (AA) LotFrontage imputed as (coefficient from dict) * sqrt(LotArea)
-    LotFrontage_dict = {'1Fam':0.7139, 
-                        'TwnhsE':0.5849, 
-                        'Twnhs':0.5227, 
-                        'Duplex':0.7725, 
-                        '2fmCon':0.6922}
-    df.loc[df['LotFrontage'].isna(), 
-           'LotFrontage'] = df.loc[df['LotFrontage'].isna(), :].apply(
-        lambda x: LotFrontage_dict[x['BldgType']]*np.sqrt(x['LotArea']), 
-        axis=1)
-    # special garagetypes that should be None.
+    #6. Impute 'Electrical' null values with the most common type 'SBrKr' -> motivated by the null value in test, is this data leakage?
+    ### trainX['Electrical'].mode() = SBrkr
+    df.loc[df['Electrical'].isna(),'Electrical'] = 'SBrkr'
+    
+    #7. JH:Specific additions: Replacing two values of GarageType to None
     df.loc[df['PID'] == 903426160,'GarageType'] = 'None'
     df.loc[df['PID'] == 910201180,'GarageType'] = 'None'
+    
     return df
+# written by Niki
+def convert_num_to_categorical(df,num_to_nominal_cat_feats=['GarageCars','MSSubClass','KitchenAbvGr','BedroomAbvGr','MoSold','YrSold']):
+    #Features that were originally numeric but should be treated as nominal categories since there is no clear 
+    #advantage from applying a rank:
+    for feat in num_to_nominal_cat_feats:
+        df[feat] = df[feat].astype(str)
+    
+    return df
+
+# written by Niki
+#According to data dictionary, NA translates to 'None' (No access, No basement etc.) for the following categories:
+def replace_na_with_none(df):
+    na_means_none_cols = ['Alley','BsmtQual','BsmtCond','BsmtFinType1','BsmtFinType2',
+                 'BsmtExposure','FireplaceQu','GarageType','GarageFinish',
+                 'GarageQual','GarageCond','PoolQC','Fence','MiscFeature']
+    for col in na_means_none_cols:
+        df[col] = df[col].fillna(value = 'None')
+    return df
+
+# written by Niki
+def map_ordinal_cat(df):
+    #Maps
+    common_ranks_dict = {'None':0,'Po':1,'Fa':2,'TA':3,'Gd':4,'Ex':5}
+    replace_map = {
+        'ExterQual': common_ranks_dict,
+        'ExterCond': common_ranks_dict,
+        'BsmtQual': common_ranks_dict,
+        'BsmtCond': common_ranks_dict,
+        'BsmtExposure': {'None':0,'No':1,'Mn':2,'Av':3,'Gd':4}, 
+        'HeatingQC': common_ranks_dict,
+        'KitchenQual': common_ranks_dict,
+        'FireplaceQu': common_ranks_dict,
+        'GarageFinish': {'None':0,'Unf':1,'RFn':2,'Fin':3},
+        'GarageQual': common_ranks_dict,
+        'GarageCond': common_ranks_dict,
+        'PavedDrive': {'N':0,'P':1,'Y':2},
+        'PoolQC': {'None':0,'Fa':1,'TA':2,'Gd':3,'Ex':4},
+        'Alley': {'None':0,'Grvl':1,'Pave':2}
+    }              
+    #Replace strings with numbers 
+    df.replace(replace_map, inplace=True)
+    return df 
+
+def data_processing_wrapper(df,
+                            # should be able to change these 
+                            # inputs for possible changes
+                            # stratified_split_dict = 
+                            ):
+    df = df[(df['SaleCondition'] == 'Normal') | 
+            (df['SaleCondition'] == 'Partial')].reset_index(drop=True)
+    
+    train_raw, test_raw = stratified_split(df,'Neighborhood')
+    # train cleaning
+    train_clean = impute_missing_vals(train_raw)
+    num_to_cat_list =['GarageCars','MSSubClass','KitchenAbvGr',
+                      'BedroomAbvGr','MoSold','YrSold']
+    train_clean = convert_num_to_categorical(train_clean,num_to_cat_list) 
+    train_clean = replace_na_with_none(train_clean)
+    # this could be an option when calling the function
+    train_clean = train_clean.drop(['PID'],axis='columns')
+    train_clean = map_ordinal_cat(train_clean)
+    # test cleaning
+    test_clean = impute_missing_vals(test_raw)
+    num_to_cat_list =['GarageCars','MSSubClass','KitchenAbvGr',
+                      'BedroomAbvGr','MoSold','YrSold']
+    test_clean = convert_num_to_categorical(test_clean,num_to_cat_list) 
+    test_clean = replace_na_with_none(test_clean)
+    # this could be an option when calling the function
+    test_clean = test_clean.drop(['PID'],axis='columns')
+    test_clean = map_ordinal_cat(test_clean)
+    return train_clean, test_clean
+
+
+
+
+
+
+    
+
+
+    

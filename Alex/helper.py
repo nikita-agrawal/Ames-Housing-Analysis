@@ -175,7 +175,7 @@ def data_processing_wrapper(df,
 
     num_to_cat_list : list, optional
         list of numerical features turned into categorical features. 
-        The default is ['GarageCars','MSSubClass',KitchenAbvGr',
+        The default is ['GarageCars','MSSubClass','KitchenAbvGr',
                         'BedroomAbvGr','MoSold','YrSold'].
     remove_PID : boolean, optional
         True if you want to remove PID col. False if you want to keep PID col.

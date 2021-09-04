@@ -10,6 +10,17 @@ import pandas as pd
 import numpy as np
 from sklearn.model_selection import StratifiedShuffleSplit
 
+
+from sklearn.linear_model import Lasso
+from sklearn.model_selection import GridSearchCV
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import StandardScaler
+from sklearn.feature_selection import SelectFromModel
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+
 # Stratified split authored by Alex A, generalized by Hayden W.
 def stratified_split(df,stratified_col,
                      n_splits = 1, 
@@ -246,8 +257,218 @@ def data_processing_wrapper(df,
 
 
 
+######for graphing
+
+def lasso_model_score(alpha, train_, test_, target, 
+                             categorical_features,
+                             drop_cols = ['SalePrice', 'TotalBsmtSF']):
+    scaler = StandardScaler(with_mean=False)
+    lasso = Lasso()
+    
+    
+    X = train_.drop(drop_cols,axis=1)
+    transformer = ColumnTransformer([("Cat", 
+                                      OneHotEncoder(handle_unknown = 'ignore'), 
+                                      categorical_features)], remainder='passthrough')
+    X = transformer.fit_transform(X)
+    X = scaler.fit_transform(X)
+    y = np.log(train_[target])
+    lasso = Lasso(alpha=alpha)
+    selector = SelectFromModel(estimator=lasso)
+    X = selector.fit_transform(X, y)
+    
+    lasso.fit(X,y)
+    train_score = lasso.score(X,y)
+
+    X_tst = test_.drop(drop_cols,axis=1)
+    X_tst = transformer.transform(X_tst)
+    X_tst = scaler.transform(X_tst)
+    y_tst = np.log(test_[target])
+    X_tst = selector.transform(X_tst)
+    test_score = lasso.score(X_tst,y_tst)
+    
+    
+    feat_names = transformer.get_feature_names()
+    mask = selector.get_support()
+    lasso_feats = [a for a, b in zip(feat_names, mask) if b]
+    
+    return train_score, test_score,lasso_feats
+    
+
+def plot_lasso_grid_search(
+    alpha_start_, alpha_stop_, alpha_num_,
+    train_, 
+    test_,
+    target_, 
+    cat_feats_,
+    drop_cols = ['SalePrice', 'TotalBsmtSF'],
+    n_folds = 3
+               ):
+    colors = ["#FF0B04", "#F1BE48",
+           "#B9975B", "#8B5B29",
+           "#524727",
+         ]
+    # lasso regression model set up.
+    scaler = StandardScaler(with_mean=False)
+    lasso = Lasso()
+
+    X = train_.drop(drop_cols,axis=1)
+    transformer = ColumnTransformer([("Cat", 
+                                      OneHotEncoder(handle_unknown = 'ignore'), 
+                                      cat_feats_)], remainder='passthrough')
+    X = transformer.fit_transform(X)
+    X = scaler.fit_transform(X)
+    y = np.log(train_[target_])
+
+    # Grid Search set up.
+
+    alphas = np.linspace(alpha_start_, alpha_stop_, alpha_num_)
+    tuned_parameters = [{'alpha': alphas}]
+    clf = GridSearchCV(lasso, tuned_parameters, cv=n_folds, refit=False)
+    clf.fit(X, y)
+    
+    # graphing data set up
+    grid_search_df = pd.DataFrame({
+        'split0_test_score':clf.cv_results_['split0_test_score'],
+        'split1_test_score':clf.cv_results_['split1_test_score'],
+        'split2_test_score':clf.cv_results_['split2_test_score'],
+        'mean_test_score':clf.cv_results_['mean_test_score'],
+        'param_alpha':clf.cv_results_['param_alpha']
+    })
+
+    graph_df = pd.melt(
+        grid_search_df,
+        id_vars=['param_alpha'], 
+        value_vars=['split0_test_score','split1_test_score','split2_test_score']
+    )
+    graph_df.columns = ['alphas','split_test','model_score']
+    
+    # graph
+    sns.lineplot(data = graph_df,
+                x = 'alphas', y = 'model_score',
+    #             ax=axs[0]
+                 color=colors[0]
+                )
+    plt.show()
+    
+    
+def lasso_train_test_graph(alpha_start, alpha_stop, alpha_num,
+               train_, 
+               test_,
+               target_, 
+               cat_feats_,
+               drop_cols = ['SalePrice', 'TotalBsmtSF']
+               ):
+    colors = ["#FF0B04", "#F1BE48",
+           "#B9975B", "#8B5B29",
+           "#524727",
+         ]
+    lasso_scores_train = []
+
+    lasso_scores_test  = []
+    lasso_feat_len = []
+
+    alphas = np.linspace(alpha_start, alpha_stop, alpha_num)
+
+    for alpha in alphas:
+        try:
+            train_score, test_score,lasso_feats = lasso_model_score(
+                               alpha,
+
+                train_, 
+               test_,
+               target_, 
+               cat_feats_,
+               drop_cols
+            )
+            lasso_scores_train.append(train_score)
+            lasso_scores_test.append(test_score)
+            lasso_feat_len.append(len(lasso_feats))
+        except ValueError:
+            print(f'Alpha of {alpha} fails')
+            lasso_scores_train.append(0)
+            lasso_scores_test.append(0)
+            lasso_feat_len.append(0)
+
+    lasso_scores_train = np.array(lasso_scores_train) 
+    lasso_scores_test  = np.array(lasso_scores_test)
+    lasso_feat_len = np.array(lasso_feat_len)
+    #graph
+    # construct df.
+    lasso_alpha_scores = pd.DataFrame({"alphas":alphas,
+                'train':lasso_scores_train,
+                'test':lasso_scores_test,
+                'feature_len':lasso_feat_len,                                       
+                                      })
+    # change df to graphable structure.
+    graph_df = pd.melt(
+        lasso_alpha_scores,
+        id_vars=['alphas'], 
+        value_vars=['train','test']
+    )
+    graph_df.columns = ['alphas','data_type','model_score']
+    
+    fig, axs = plt.subplots(2,1,figsize=(10,12))
+    sns.lineplot(data = graph_df,
+                x = 'alphas', y = 'model_score',hue = 'data_type',
+                ax=axs[0]
+                )
+    # define variable for test train model that is the closest.
+    lasso_alpha_scores['train_test_dist'] = abs(lasso_alpha_scores['train'] -
+                                                lasso_alpha_scores['test'])
+    shortest_dist = lasso_alpha_scores.sort_values('train_test_dist'
+                                               ).reset_index(drop = True).loc[0,:]
+    best_lasso_alpha = shortest_dist['alphas']
+    best_lasso_train = shortest_dist['train']
+    best_lasso_test = shortest_dist['test']
+    best_lasso_dist = shortest_dist['train_test_dist']
+
+    # construct clostest alpha line
+    axs[0].plot([best_lasso_alpha,best_lasso_alpha], 
+             [best_lasso_train,best_lasso_test],color=colors[2])
+    axs[0].plot(best_lasso_alpha, best_lasso_train,
+             marker='o', markersize=8,
+             color=colors[2])
+    axs[0].plot(best_lasso_alpha, best_lasso_test,
+             marker='o', markersize=8,
+             color=colors[2])
+    # label closest alpha point
+    axs[0].text(best_lasso_alpha +.0005, ((best_lasso_test+best_lasso_train)/2), 
+             "Alpha = {:.5f}\nDistance = {:.5f}".format(best_lasso_alpha,best_lasso_dist))
+    
+    # define variable for the test model that has the best score
+    
+    test_max = lasso_alpha_scores.sort_values('test',ascending=False
+                                             ).reset_index(drop = True).loc[0,:]
+    best_lasso_alpha = test_max['alphas']
+    best_lasso_test = test_max['test']
+
+    axs[0].plot(best_lasso_alpha, best_lasso_test,
+             marker='o', markersize=8,
+             color=colors[3])
+    axs[0].text(best_lasso_alpha +.0005, best_lasso_test, 
+         "Alpha = {:.5f}\nScore = {:.3f}".format(best_lasso_alpha,best_lasso_test))
+    
+    
+    
+
+    axs[0].set_title(r'Lasso Train-Test $R^2$ Comparison')
+    axs[0].set_xlabel(r'hyperparameter $\alpha$')
+    axs[0].set_ylabel(r'$R^2$')
+    
+    axs[1].set_xlabel(r'hyperparameter $\alpha$')
+    axs[1].set_ylabel(r'Number of Features')
+
+
+
 
     
+    sns.lineplot(data = lasso_alpha_scores,
+            x = 'alphas', y = 'feature_len',
+                 color = colors[2],
+            ax=axs[1]
+            )
+    plt.show()
 
 
     

@@ -253,7 +253,7 @@ def data_processing_wrapper(df,
     return train_clean, test_clean
 
 
-
+##########
 def add_year_since_feature(df):
     df['year_since_built'] = df['YrSold']-df['YearBuilt']
     df['year_since_remod'] = df['YrSold']-df['YearRemodAdd']
@@ -293,7 +293,7 @@ def add_non_linear_transformed_features(df,cols):
     df = pd.concat(df_list, axis=1)
     return df
 
-def add_price_comp_log_feature(train_, test_,comp_feature):
+def add_price_log_comp_feature(train_, test_,comp_feature):
     temp = train_.copy()
     temp['log_SalePrice'] = np.log(temp['SalePrice'])
     temp = temp.groupby(comp_feature).agg({'log_SalePrice':'median'})
@@ -301,6 +301,55 @@ def add_price_comp_log_feature(train_, test_,comp_feature):
     train_ = train_.merge(temp, how='left', on=comp_feature)
     test_ = test_.merge(temp, how='left', on=comp_feature)
     return train_, test_
+
+def feature_engineering_wrapper(train_,test_,
+                                comp_features = [
+                                    'Neighborhood',
+                                    'GarageCars',
+                                    'BldgType',
+                                    'MSZoning',
+                                    'Condition1'
+                                    ],
+                                poly_features = [
+                                    'OverallQual',
+                                    'overall_score',
+                                    'total_sf',
+                                    'GrLivArea',
+                                    'year_since_built',
+                                    'LotArea',
+                                    'GarageArea',
+                                    'year_since_remod',
+                                    'BsmtExposure',
+                                    'KitchenQual'
+                                    ],
+                                add_year_since = True,
+                                add_score = True,
+                                add_combined = True,
+                                add_poly = True,
+                                ):
+    # add the comp features in list.
+    for comp_feature in comp_features:
+        train_, test = add_price_log_comp_feature(train_, test_,comp_feature)
+    # add year since built features
+    if add_year_since:
+        train_ = add_year_since_feature(train_)
+        test_ = add_year_since_feature(test_)
+    # add score features
+    if add_score:
+        train_ = add_score_feature(train_)
+        test_ = add_score_feature(test_)
+    # add combined numerical features
+    if add_combined:
+        train_ = add_combined_related_num_features(train_)
+        test_ = add_combined_related_num_features(test_)
+    # add non linear  transformations for listed features.
+    if add_poly:
+        train_ = add_non_linear_transformed_features(train_,poly_features)
+        test_ = add_non_linear_transformed_features(test_,poly_features)
+    return train_,test_
+
+################
+
 
 def lasso_grid_cv(train_,cat_feats_,
                   starting_alphas_=[0.0001, 0.0003, 0.0006, 0.001, 
@@ -355,3 +404,9 @@ def lasso_grid_cv(train_,cat_feats_,
         best_score_diff = abs(best_score-best_score_last)
     print('Modeling complete :)')
     return clf, transformer, scaler
+
+
+#################
+
+
+

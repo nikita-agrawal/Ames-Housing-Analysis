@@ -302,7 +302,7 @@ def add_price_comp_log_feature(train_, test_,comp_feature):
     test_ = test_.merge(temp, how='left', on=comp_feature)
     return train_, test_
 
-def lasso_grid_cv(train_,test_,cat_feats_,
+def lasso_grid_cv(train_,cat_feats_,
                   starting_alphas_=[0.0001, 0.0003, 0.0006, 0.001, 
                                     0.003, 0.006, 0.01, 0.03, 0.06, 0.1,
                                     0.3, 0.6, 1],

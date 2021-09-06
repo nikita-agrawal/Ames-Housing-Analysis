@@ -299,7 +299,7 @@ def feature_engineering_wrapper(train_,test_,
                                 ):
     # add the comp features in list.
     for comp_feature in comp_features:
-        train_, test = add_price_log_comp_feature(train_, test_,comp_feature)
+        train_, test_ = add_price_log_comp_feature(train_, test_,comp_feature)
     # add year since built features
     if add_year_since:
         train_ = add_year_since_feature(train_)

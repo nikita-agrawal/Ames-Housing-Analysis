@@ -361,7 +361,7 @@ def lasso_grid_cv(train_,cat_feats_,
                  ):
 
     scaler = StandardScaler(with_mean=False)
-    lasso = Lasso(max_iter = 50000, )
+    lasso = Lasso(max_iter = 50000, random_state = 33)
 
     X = train_.drop(['SalePrice','PID'],axis=1)
     transformer = ColumnTransformer([("Cat", 
@@ -377,7 +377,7 @@ def lasso_grid_cv(train_,cat_feats_,
     tuned_parameters = [{'alpha': alphas}]
     print(f'Performing Grid Search with alphas of: {alphas}')
     clf1 = GridSearchCV(lasso, tuned_parameters, 
-                        cv=cv_,n_jobs = n_jobs_,random_state = 33)
+                        cv=cv_,n_jobs = n_jobs_)
     clf1.fit(X, y)
 
     # best alpha with first draft. Now iterate for more precision with alphas.
@@ -394,7 +394,7 @@ def lasso_grid_cv(train_,cat_feats_,
         alphas = alphas_multiply*best_alpha
         tuned_parameters = [{'alpha': alphas}]
         print(f'Performing Grid Search with alphas of: {alphas}')
-        clf2 = GridSearchCV(lasso, tuned_parameters, cv=5, random_state = 33,)
+        clf2 = GridSearchCV(lasso, tuned_parameters, cv=5)
         clf2.fit(X, y)
         best_alpha = clf2.best_params_['alpha']
         best_score = clf2.best_score_

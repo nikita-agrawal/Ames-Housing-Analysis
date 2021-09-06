@@ -175,7 +175,7 @@ def data_processing_wrapper(df,
 
     num_to_cat_list : list, optional
         list of numerical features turned into categorical features. 
-        The default is ['GarageCars','MSSubClass','KitchenAbvGr',
+        The default is ['GarageCars','MSSubClass',KitchenAbvGr',
                         'BedroomAbvGr','MoSold','YrSold'].
     remove_PID : boolean, optional
         True if you want to remove PID col. False if you want to keep PID col.
@@ -222,3 +222,98 @@ def data_processing_wrapper(df,
         test_clean = test_clean.drop(['PID'],axis='columns')
     test_clean = map_ordinal_cat(test_clean)
     return train_clean, test_clean
+
+##
+def add_year_since_feature(df):
+    df['year_since_built'] = df['YrSold']-df['YearBuilt']
+    df['year_since_remod'] = df['YrSold']-df['YearRemodAdd']
+    df['year_since_garage'] = df['YrSold']-df['GarageYrBlt']
+
+    df.loc[df['year_since_built']<0,'year_since_built']=0
+    df.loc[df['year_since_remod']<0,'year_since_remod']=0
+    df.loc[df['year_since_garage']<0,'year_since_garage']=0
+    return df
+
+
+def add_combined_related_num_features(df):
+    df['total_sf'] = df['GrLivArea'] + df['TotalBsmtSF']
+    df['total_high_qual_finished_sf'] = (df['GrLivArea'] + df['TotalBsmtSF'] - # Adding total square foot.
+                                         df['BsmtUnfSF'] - df['LowQualFinSF']) # Subtracting unfinished/low qual
+    df['total_deck_sf'] = (df['WoodDeckSF'] + df['OpenPorchSF'] + df['EnclosedPorch'] + 
+                           df['3SsnPorch'] + df['ScreenPorch'])
+    df['total_full_bath'] = df['BsmtFullBath'] + df['FullBath']
+    df['total_half_bath'] = df['BsmtHalfBath'] + df['HalfBath']
+    return df
+
+def add_score_feature(df):
+    df['overall_score'] = df['OverallQual']*df['OverallCond']
+    df['exter_score'] = df['ExterQual']*df['ExterCond']
+    df['bsmt_score'] = df['BsmtQual']*df['BsmtCond']
+    df['garage_score'] = df['GarageQual']*df['GarageCond']
+    return df
+
+def add_non_linear_transformed_features(df,cols):
+    df_list = [df]
+    for col in cols:
+        df_new = pd.DataFrame()
+        df_new[col+'_squared'] = df[col]**2
+        df_new[col+'_cubed'] = df[col]**3
+        df_new[col+'_square_root'] = df[col]**0.5
+        df_list.append(df_new)
+    df = pd.concat(df_list, axis=1)
+    return df
+
+def add_price_log_comp_feature(train_, test_,comp_feature):
+    temp = train_.copy()
+    temp['log_SalePrice'] = np.log(temp['SalePrice'])
+    temp = temp.groupby(comp_feature).agg({'log_SalePrice':'median'})
+    temp.columns = [comp_feature+'_log_comp']
+    train_ = train_.merge(temp, how='left', on=comp_feature)
+    test_ = test_.merge(temp, how='left', on=comp_feature)
+    return train_, test_
+
+def feature_engineering_wrapper(train_,test_,
+                                comp_features = [
+                                    'Neighborhood',
+                                    'GarageCars',
+                                    'BldgType',
+                                    'MSZoning',
+                                    'Condition1'
+                                    ],
+                                poly_features = [
+                                    'OverallQual',
+                                    'overall_score',
+                                    'total_sf',
+                                    'GrLivArea',
+                                    'year_since_built',
+                                    'LotArea',
+                                    'GarageArea',
+                                    'year_since_remod',
+                                    'BsmtExposure',
+                                    'KitchenQual'
+                                    ],
+                                add_year_since = True,
+                                add_score = True,
+                                add_combined = True,
+                                add_poly = True,
+                                ):
+    # add the comp features in list.
+    for comp_feature in comp_features:
+        train_, test_ = add_price_log_comp_feature(train_, test_,comp_feature)
+    # add year since built features
+    if add_year_since:
+        train_ = add_year_since_feature(train_)
+        test_ = add_year_since_feature(test_)
+    # add score features
+    if add_score:
+        train_ = add_score_feature(train_)
+        test_ = add_score_feature(test_)
+    # add combined numerical features
+    if add_combined:
+        train_ = add_combined_related_num_features(train_)
+        test_ = add_combined_related_num_features(test_)
+    # add non linear  transformations for listed features.
+    if add_poly:
+        train_ = add_non_linear_transformed_features(train_,poly_features)
+        test_ = add_non_linear_transformed_features(test_,poly_features)
+    return train_,test_

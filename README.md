@@ -1,6 +1,8 @@
 # Ames-Housing-Analysis 
 by Hayden Warren, Julie Hemily, Alex Austin & Niki Agrawal 
 
+Project Presentation: https://docs.google.com/presentation/d/16uVRBmOqUY8zQb_EnujSbG4dh2dAZQNayrRI_HInEzU/edit?usp=sharing
+
 Our client is a startup real estate company that has asked us to build a rival to housing price estimates such as Zillow's Zestimate. The client has asked us to focus on accuracy over interpretation, however, feature importance information is gladly received.   
 
 Our goal:  Predict housing price with the highest R2 value for homes in the city of Ames located in Story County, Iowa.

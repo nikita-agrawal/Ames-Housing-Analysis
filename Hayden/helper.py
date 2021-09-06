@@ -361,7 +361,7 @@ def lasso_grid_cv(train_,cat_feats_,
                  ):
 
     scaler = StandardScaler(with_mean=False)
-    lasso = Lasso(max_iter = 50000, )
+    lasso = Lasso(max_iter = 50000, random_state = 33)
 
     X = train_.drop(['SalePrice','PID'],axis=1)
     transformer = ColumnTransformer([("Cat", 
@@ -369,19 +369,20 @@ def lasso_grid_cv(train_,cat_feats_,
                                       cat_feats_)], remainder='passthrough')
     X = transformer.fit_transform(X)
     X = scaler.fit_transform(X)
-    y = np.log(train['SalePrice'])
+    y = np.log(train_['SalePrice'])
 
     # Grid Search set up.
 
     alphas = starting_alphas_
     tuned_parameters = [{'alpha': alphas}]
     print(f'Performing Grid Search with alphas of: {alphas}')
-    clf = GridSearchCV(lasso, tuned_parameters, cv=cv_,n_jobs = n_jobs_)
-    clf.fit(X, y)
+    clf1 = GridSearchCV(lasso, tuned_parameters, 
+                        cv=cv_,n_jobs = n_jobs_)
+    clf1.fit(X, y)
 
     # best alpha with first draft. Now iterate for more precision with alphas.
-    best_alpha = clf.best_params_['alpha']
-    best_score = clf.best_score_
+    best_alpha = clf1.best_params_['alpha']
+    best_score = clf1.best_score_
     print(f'Current best alpha: {best_alpha}')
     print(f'Current best CV R2: {best_score}')
     best_score_last = 1
@@ -393,16 +394,16 @@ def lasso_grid_cv(train_,cat_feats_,
         alphas = alphas_multiply*best_alpha
         tuned_parameters = [{'alpha': alphas}]
         print(f'Performing Grid Search with alphas of: {alphas}')
-        clf = GridSearchCV(lasso, tuned_parameters, cv=5)
-        clf.fit(X, y)
-        best_alpha = clf.best_params_['alpha']
-        best_score = clf.best_score_
+        clf2 = GridSearchCV(lasso, tuned_parameters, cv=5)
+        clf2.fit(X, y)
+        best_alpha = clf2.best_params_['alpha']
+        best_score = clf2.best_score_
         
         print(f'Current best alpha: {best_alpha}')
         print(f'Current best CV R2: {best_score}')        
         best_score_diff = abs(best_score-best_score_last)
     print('Modeling complete :)')
-    return clf, transformer, scaler
+    return clf2, transformer, scaler, clf1
 
 
 #################

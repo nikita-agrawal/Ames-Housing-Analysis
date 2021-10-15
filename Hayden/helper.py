@@ -356,14 +356,15 @@ def lasso_grid_cv(train_,cat_feats_,
                                     0.003, 0.006, 0.01, 0.03, 0.06, 0.1,
                                     0.3, 0.6, 1],
                   n_jobs_ = None,
-                  cv_ = 5
-                  
+                  cv_ = 5,
+                  drop_cols_ = ['SalePrice','PID'],
+                  loop = True
                  ):
 
     scaler = StandardScaler(with_mean=False)
     lasso = Lasso(max_iter = 50000, random_state = 33)
 
-    X = train_.drop(['SalePrice','PID'],axis=1)
+    X = train_.drop(drop_cols_,axis=1)
     transformer = ColumnTransformer([("Cat", 
                                       OneHotEncoder(handle_unknown = 'ignore'), 
                                       cat_feats_)], remainder='passthrough')
@@ -379,32 +380,33 @@ def lasso_grid_cv(train_,cat_feats_,
     clf1 = GridSearchCV(lasso, tuned_parameters, 
                         cv=cv_,n_jobs = n_jobs_)
     clf1.fit(X, y)
-
-    # best alpha with first draft. Now iterate for more precision with alphas.
-    best_alpha = clf1.best_params_['alpha']
-    best_score = clf1.best_score_
-    print(f'Current best alpha: {best_alpha}')
-    print(f'Current best CV R2: {best_score}')
-    best_score_last = 1
-    best_score_diff = abs(best_score-best_score_last)
-    while best_score_diff > .001:
-        best_score_last = best_score
-        alphas_multiply = np.array([.3,.4,.5,.6,.7,.8,.9,1,
-                            1.1,1.2,1.3,1.4,1.5,1.6,1.7,1.8,1.9])
-        alphas = alphas_multiply*best_alpha
-        tuned_parameters = [{'alpha': alphas}]
-        print(f'Performing Grid Search with alphas of: {alphas}')
-        clf2 = GridSearchCV(lasso, tuned_parameters, cv=5)
-        clf2.fit(X, y)
-        best_alpha = clf2.best_params_['alpha']
-        best_score = clf2.best_score_
-        
+    # if loop is true than iterate to find the best alphas.
+    if loop: 
+        # best alpha with first draft. Now iterate for more precision with alphas.
+        best_alpha = clf1.best_params_['alpha']
+        best_score = clf1.best_score_
         print(f'Current best alpha: {best_alpha}')
-        print(f'Current best CV R2: {best_score}')        
-        best_score_diff = abs(best_score-best_score_last)
-    print('Modeling complete :)')
-    return clf2, transformer, scaler, clf1
+        print(f'Current best CV R2: {best_score}')
+        best_alpha_last = 1
+        while best_alpha != best_alpha_last:
+            best_alpha_last = best_alpha
+            alphas_multiply = np.array([.3,.4,.5,.6,.7,.8,.9,1,
+                                1.1,1.2,1.3,1.4,1.5,1.6,1.7,1.8,1.9])
+            alphas = alphas_multiply*best_alpha
+            tuned_parameters = [{'alpha': alphas}]
+            print(f'Performing Grid Search with alphas of: {alphas}')
+            clf2 = GridSearchCV(lasso, tuned_parameters, cv=5)
+            clf2.fit(X, y)
+            best_alpha = clf2.best_params_['alpha']
+            best_score = clf2.best_score_
 
+            print(f'Current best alpha: {best_alpha}')
+            print(f'Current best CV R2: {best_score}')  
+        print('Modeling complete :)')
+        return clf2, transformer, scaler, clf1
+    # if loop is false than take the first result of the grid search
+    else:
+        return clf1, transformer, scaler
 
 #################
 
